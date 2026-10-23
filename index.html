@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Morpion – Sophiae</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@200;300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --violet: #6f2da0;
+    --violet-clair: #f3ebf9;
+    --gris: #666666;
+    --anthracite: #333333;
+    --fond: #ffffff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+    padding: 24px 16px;
+    background: var(--fond);
+    color: var(--anthracite);
+    font-family: "Josefin Sans", "Century Gothic", "Futura", sans-serif;
+  }
+  .logo {
+    font-size: clamp(3rem, 12vw, 5rem);
+    font-weight: 300;
+    letter-spacing: 2px;
+    line-height: 1;
+    margin: 0;
+  }
+  .logo .g { color: var(--gris); }
+  .logo .v { color: var(--violet); }
+  .logo .a { color: var(--anthracite); }
+  .logo .point { color: var(--violet); }
+  .sous-titre {
+    margin: -10px 0 0;
+    font-weight: 200;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    color: var(--gris);
+    font-size: 0.95rem;
+  }
+  .modes { display: flex; gap: 8px; }
+  button {
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .mode {
+    background: none;
+    border: 1px solid var(--gris);
+    color: var(--gris);
+    padding: 8px 18px;
+    border-radius: 999px;
+    font-size: 0.95rem;
+    font-weight: 300;
+    transition: all .15s;
+  }
+  .mode.actif {
+    background: var(--violet);
+    border-color: var(--violet);
+    color: #fff;
+  }
+  #statut {
+    min-height: 1.6em;
+    font-size: 1.25rem;
+    font-weight: 300;
+    text-align: center;
+  }
+  #statut strong { font-weight: 600; }
+  #plateau {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    width: min(88vw, 360px);
+    aspect-ratio: 1;
+  }
+  .case {
+    background: var(--violet-clair);
+    border: none;
+    border-radius: 14px;
+    font-size: clamp(2.8rem, 14vw, 4.5rem);
+    font-weight: 200;
+    line-height: 1;
+    transition: background .15s, transform .1s;
+  }
+  .case:hover:not(:disabled) { background: #e6d5f2; transform: scale(1.03); }
+  .case:disabled { cursor: default; }
+  .case.X { color: var(--violet); }
+  .case.O { color: var(--anthracite); }
+  .case.gagnante { background: var(--violet); color: #fff; }
+  .scores {
+    display: flex;
+    gap: 26px;
+    font-weight: 300;
+    color: var(--gris);
+  }
+  .scores b { color: var(--anthracite); font-weight: 600; }
+  .scores .sx b { color: var(--violet); }
+  #rejouer {
+    background: var(--violet);
+    color: #fff;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 999px;
+    font-size: 1rem;
+    font-weight: 400;
+    letter-spacing: 1px;
+    transition: background .15s;
+  }
+  #rejouer:hover { background: #59247f; }
+</style>
+</head>
+<body>
+
+<h1 class="logo" aria-label="Sophiae">
+  <span class="g">so</span><span class="v">ph</span><span class="g">ia</span><span class="a">e</span><span class="point">.</span>
+</h1>
+<p class="sous-titre">Morpion</p>
+
+<div class="modes">
+  <button class="mode actif" id="mode-2j">2 joueurs</button>
+  <button class="mode" id="mode-ia">Contre l'ordinateur</button>
+</div>
+
+<div id="statut"></div>
+<div id="plateau" role="grid" aria-label="Plateau de morpion"></div>
+
+<div class="scores">
+  <span class="sx">X : <b id="score-x">0</b></span>
+  <span>Nuls : <b id="score-n">0</b></span>
+  <span>O : <b id="score-o">0</b></span>
+</div>
+
+<button id="rejouer">Nouvelle partie</button>
+
+<script>
+  const LIGNES = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+
+  const plateauEl = document.getElementById("plateau");
+  const statutEl = document.getElementById("statut");
+  const scores = { X: 0, O: 0, N: 0 };
+
+  let cases = Array(9).fill(null);
+  let joueur = "X";
+  let fini = false;
+  let contreIA = false;
+
+  // Création des 9 cases
+  const boutons = [];
+  for (let i = 0; i < 9; i++) {
+    const b = document.createElement("button");
+    b.className = "case";
+    b.setAttribute("aria-label", "Case " + (i + 1));
+    b.addEventListener("click", () => jouer(i));
+    plateauEl.appendChild(b);
+    boutons.push(b);
+  }
+
+  function afficherTour() {
+    statutEl.innerHTML = "Au tour de <strong>" + joueur + "</strong>";
+  }
+
+  function trouverGagnant(grille) {
+    for (const l of LIGNES) {
+      const [a, b, c] = l;
+      if (grille[a] && grille[a] === grille[b] && grille[a] === grille[c]) {
+        return { joueur: grille[a], ligne: l };
+      }
+    }
+    return null;
+  }
+
+  function jouer(i) {
+    if (fini || cases[i]) return;
+    cases[i] = joueur;
+    boutons[i].textContent = joueur;
+    boutons[i].classList.add(joueur);
+    boutons[i].disabled = true;
+
+    const gain = trouverGagnant(cases);
+    if (gain) {
+      fini = true;
+      gain.ligne.forEach(k => boutons[k].classList.add("gagnante"));
+      scores[gain.joueur]++;
+      statutEl.innerHTML = "<strong>" + gain.joueur + "</strong> a gagné !";
+      majScores();
+      boutons.forEach(b => b.disabled = true);
+      return;
+    }
+    if (cases.every(Boolean)) {
+      fini = true;
+      scores.N++;
+      statutEl.textContent = "Match nul";
+      majScores();
+      return;
+    }
+    joueur = joueur === "X" ? "O" : "X";
+    afficherTour();
+
+    if (contreIA && joueur === "O") {
+      fini = true; // bloque les clics pendant que l'ordinateur « réfléchit »
+      setTimeout(() => {
+        fini = false;
+        jouer(coupOrdinateur());
+      }, 450);
+    }
+  }
+
+  // Ordinateur : gagner > bloquer > centre > coin > au hasard
+  function coupOrdinateur() {
+    const libres = cases.map((v, i) => v ? null : i).filter(v => v !== null);
+    for (const sym of ["O", "X"]) {
+      for (const i of libres) {
+        const test = cases.slice();
+        test[i] = sym;
+        if (trouverGagnant(test)) return i;
+      }
+    }
+    if (libres.includes(4)) return 4;
+    const coins = [0, 2, 6, 8].filter(i => libres.includes(i));
+    if (coins.length) return coins[Math.floor(Math.random() * coins.length)];
+    return libres[Math.floor(Math.random() * libres.length)];
+  }
+
+  function majScores() {
+    document.getElementById("score-x").textContent = scores.X;
+    document.getElementById("score-o").textContent = scores.O;
+    document.getElementById("score-n").textContent = scores.N;
+  }
+
+  function nouvellePartie() {
+    cases = Array(9).fill(null);
+    joueur = "X";
+    fini = false;
+    boutons.forEach(b => {
+      b.textContent = "";
+      b.className = "case";
+      b.disabled = false;
+    });
+    afficherTour();
+  }
+
+  function choisirMode(ia) {
+    contreIA = ia;
+    document.getElementById("mode-ia").classList.toggle("actif", ia);
+    document.getElementById("mode-2j").classList.toggle("actif", !ia);
+    scores.X = scores.O = scores.N = 0;
+    majScores();
+    nouvellePartie();
+  }
+
+  document.getElementById("rejouer").addEventListener("click", nouvellePartie);
+  document.getElementById("mode-2j").addEventListener("click", () => choisirMode(false));
+  document.getElementById("mode-ia").addEventListener("click", () => choisirMode(true));
+
+  nouvellePartie();
+</script>
+</body>
+</html>
