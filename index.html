@@ -35,6 +35,11 @@
     line-height: 1;
     margin: 0;
   }
+  .logo-img {
+    width: min(80vw, 380px);
+    height: auto;
+    margin: -10px 0 -18px;
+  }
   .logo .g { color: var(--gris); }
   .logo .v { color: var(--violet); }
   .logo .a { color: var(--anthracite); }
@@ -119,7 +124,8 @@
 </head>
 <body>
 
-<h1 class="logo" aria-label="Sophiae">
+<img class="logo-img" src="Logo%20couleurs%20300%20DPI%20Grand.png" alt="Sophiae">
+<h1 class="logo" id="logo-texte" aria-label="Sophiae" hidden>
   <span class="g">so</span><span class="v">ph</span><span class="g">ia</span><span class="a">e</span><span class="point">.</span>
 </h1>
 <p class="sous-titre">Morpion</p>
@@ -146,6 +152,12 @@
     [0,3,6],[1,4,7],[2,5,8],
     [0,4,8],[2,4,6]
   ];
+
+  // Si l'image du logo est introuvable, on affiche le logo en texte
+  document.querySelector(".logo-img").addEventListener("error", function () {
+    this.hidden = true;
+    document.getElementById("logo-texte").hidden = false;
+  });
 
   const plateauEl = document.getElementById("plateau");
   const statutEl = document.getElementById("statut");
